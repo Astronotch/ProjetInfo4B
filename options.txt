@@ -1,4 +1,4 @@
 nbEtage: 4
 nbFamille: 3
-nbEnnemi: 56
+nbEnnemi: 3
 nbPassage: 3

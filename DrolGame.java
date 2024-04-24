@@ -14,6 +14,7 @@ public class DrolGame {
     private static int nbJoueur;
     private static int nbJoueurVivant;
     private static int nbPassage;
+    private static int nbEquipe=0;
 
     private static final String EMPTY = " ";
     private static final String WALL = "#";
@@ -25,6 +26,7 @@ public class DrolGame {
     private static final ArrayList<Ennemi> ennemis = new ArrayList<Ennemi>();
     private static final ArrayList<Famille> familles = new ArrayList<Famille>();
     private static final ArrayList<Joueur> joueurs = new ArrayList<Joueur>();
+    private static final ArrayList<Equipe> equipes = new ArrayList<Equipe>();
 
     private static String[][] grid;
 
@@ -33,18 +35,21 @@ public class DrolGame {
     private static PrintWriter out;
     private static InputStream inputStream;
     private static BufferedReader stdIn;
-    private static DisplayRunnable displayThread;    
+    private static DisplayRunnable displayThread;   
+
+    private static int optionMode;
+    private static int option;
 
     public static void main(String[] args) {
-        int option;
         int tempOption;
         int tempJoueur;
+        optionMode = -1;
+
 
         initOption();
 
         Scanner reponse = new Scanner(System.in);
         do{
-            ///////////////////////////////////////////////////////////////////FAIRE LE MENU ICI/////////////////////////////////////////////////////////////////// 
             System.out.println();
             System.out.println("Bienvenue dans le jeu de Drol");
             System.out.println("0-Quitter le jeu");
@@ -61,13 +66,51 @@ public class DrolGame {
                     System.exit(1);
                 case 1:
                     nbJoueur = 1;
+                    optionMode = 0;
                     break;
                 case 2:
                     do{
+                        System.out.println();
                         System.out.println("Choisissez un nombre de joueur entre 2 et 4:");
                         tempJoueur = reponse.nextInt();
                     }while(tempJoueur>4 || tempJoueur<2);
                     nbJoueur = tempJoueur;
+                    do{
+                        System.out.println();
+                        System.out.println("0-Retour");
+                        System.out.println("1-Multijoueur coopératif");
+                        System.out.println("2-Multijoueur combat");
+                        optionMode = reponse.nextInt();
+                    }while(optionMode<0 || optionMode>2);
+                    if(optionMode!=0){
+                        int tempOptionEquipe;
+                        do{
+                            System.out.println();
+                            System.out.println("Choisissez le nombre d'équipe (2-" + nbJoueur + ")");
+                            tempOptionEquipe = reponse.nextInt();
+                        }while(tempOptionEquipe<2 || tempOptionEquipe>nbJoueur);
+                        nbEquipe = tempOptionEquipe;
+                        switch(nbEquipe){
+                            case 4:
+                                equipes.add(new Equipe("Rouge"));
+                                equipes.add(new Equipe("Bleue"));
+                                equipes.add(new Equipe("Verte"));
+                                equipes.add(new Equipe("Jaune"));
+                                break;
+                            case 3:
+                                equipes.add(new Equipe("Rouge"));
+                                equipes.add(new Equipe("Bleue"));
+                                equipes.add(new Equipe("Verte"));
+                                break;
+                            case 2:
+                                equipes.add(new Equipe("Rouge"));
+                                equipes.add(new Equipe("Bleue"));
+                                break;
+
+                        }
+                    }else{
+                        option = -1;
+                    }
                     break;
                 case 3:
                     afficheScore();
@@ -131,7 +174,7 @@ public class DrolGame {
                                 int tempOptionPassage;
                                 do{
                                     System.out.println();
-                                    System.out.println("Choisissez le nombre d'ennemi (1-48)");
+                                    System.out.println("Choisissez le nombre de passage par étage (1-48)");
                                     System.out.println("Nombre de passage actuellement compris entre 1 et " + nbPassage);
                                     tempOptionPassage = reponse.nextInt();
                                 }while(tempOptionPassage>48 || tempOptionPassage<1);
@@ -153,18 +196,15 @@ public class DrolGame {
             }
         }while(option!=1 && option!=2);
         reponse.close();
-        
-        
-        
-        
-        
         initializeGrid();
-
-        try (ServerSocket serverSocket = new ServerSocket(1234)){
-            System.out.println("Waiting for player(s)...");
+        
+        try (ServerSocket serverSocket = new ServerSocket(8080)){
+            if(getNbEquipe()>1){
+                System.out.println("En attente des joueurs");
+            }else{
+                System.out.println("En attente du joueur");
+            }
             displayThread = new DisplayRunnable();
-
-
             do{
                 socket = serverSocket.accept();
                 System.out.println("Nouveau client connecté");
@@ -176,12 +216,21 @@ public class DrolGame {
                 stdIn = new BufferedReader(new InputStreamReader(inputStream));
 
                 String pseudo = stdIn.readLine(); 
+
+                System.out.println("Bienvenue, " + pseudo + "!");
                 out.println("Bienvenue, " + pseudo + "!");
-    
 
                 Joueur j = ajoutJoueur(out, pseudo);
                 new PlayerHandler(socket, out, stdIn, grid, j).start();
             }while(joueurs.size()<nbJoueur);
+
+            if(optionMode!=0){
+                while(!equipePleine()){
+                }
+            }else{
+                joueurs.get(0).getEquipe().ajoutJoueur(joueurs.get(0));
+            }
+
             placeEntities();
             displayThread.start();
             nbJoueurVivant = nbJoueur;
@@ -225,12 +274,23 @@ public class DrolGame {
         }catch(IOException e){e.printStackTrace();}
     }
 
+    public static boolean equipePleine(){
+        synchronized(equipes){
+            for(Joueur joueur: joueurs){
+                if(joueur.getEquipe().getNom().equals("None")){
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
     private static void initializeGrid() {
         for (int i = 0; i < WIDTH; i++) {
             for (int j = 0; j < HEIGHT; j++) {
                 if (j == 0 || j == HEIGHT - 1 || i%2==0) {
                     grid[i][j] = WALL;
-                } else {
+                }else{
                     grid[i][j] = EMPTY;
                 }
             }
@@ -411,16 +471,13 @@ public class DrolGame {
                         }
                     }
 
-                    //FAIRE EN SORTE DE TUER JUSTE UN ROBOT ET D'ARRETER QUAND PLUS AUCUN ROBOT N'EST DISPO
                     if(ennemiToucheJoueur(ennemi)){
                         nbJoueurVivant--;
                         Joueur j = ennemiJoueurTouche(ennemi);
                         j.meurt();
                         j.getOut().println("Le robot est mort");
                         j.getOut().println("END");
-                        if(nbJoueurVivant == 0){
-                            displayThread.displayGrid();
-                            displayThread.arret();
+                        if(!encoreEquipeVivante()){
                             try{
                                 FileOutputStream outputStream = new FileOutputStream("score.txt", true);
                                 PrintWriter printStream = new PrintWriter(outputStream, true, StandardCharsets.UTF_8);
@@ -443,13 +500,24 @@ public class DrolGame {
                     if(!projectile.estMort()){
                         switch(projectile.getDirection()){
                             case "H":
-                                if (grid[projectile.getX() - 1][projectile.getY()] == EMPTY || grid[projectile.getX() - 1][projectile.getY()] == ENNEMY1 || grid[projectile.getX() - 1][projectile.getY()] == ENNEMY2) {
-                                    if(!projectileToucheEnnemi(projectile)){
+                                if (grid[projectile.getX() - 1][projectile.getY()] != WALL && grid[projectile.getX() - 1][projectile.getY()] != FAMILY){
+                                    if(projectileToucheEnnemi(projectile)){
+                                        tueEnnemi(projectile);
+                                    }else if(projectileVaToucherJoueur(projectile)){
+                                        Joueur j = joueurToucheProjectile(projectile);
+                                        if(!j.getEquipe().equals(projectile.getJoueur().getEquipe()) && optionMode == 2){
+                                            projectile.getJoueur().ajScore(20);
+                                            projectile.getJoueur().getOut().println("Vous venez de tuer un adversaire");
+                                            projectile.getJoueur().getOut().println("+20 points");
+                                            grid[j.getX()][j.getY()] = EMPTY;
+                                            tueJoueur(j);
+                                        }
+                                        projectile.meurt();
+                                        grid[projectile.getX()][projectile.getY()] = EMPTY;
+                                    }else{
                                         projectile.bougeHaut();
                                         grid[projectile.getX()+1][projectile.getY()] = EMPTY;
                                         grid[projectile.getX()][projectile.getY()] = projectile.getChara();
-                                    }else{
-                                        tueEnnemi(projectile);
                                     }
                                 }else{
                                     grid[projectile.getX()][projectile.getY()] = EMPTY;
@@ -457,13 +525,24 @@ public class DrolGame {
                                 }
                                 break;
                             case "G":
-                                if(grid[projectile.getX()][projectile.getY()-1] == EMPTY || grid[projectile.getX()][projectile.getY()-1] == ENNEMY1 || grid[projectile.getX()][projectile.getY()-1] == ENNEMY2) {
-                                    if(!projectileToucheEnnemi(projectile)){
+                                if (grid[projectile.getX()][projectile.getY()-1] != WALL && grid[projectile.getX()][projectile.getY()-1] != FAMILY){
+                                    if(projectileToucheEnnemi(projectile)){
+                                        tueEnnemi(projectile);
+                                    }else if(projectileVaToucherJoueur(projectile)){
+                                        Joueur j = joueurToucheProjectile(projectile);
+                                        if(!j.getEquipe().equals(projectile.getJoueur().getEquipe()) && optionMode == 2){
+                                            projectile.getJoueur().ajScore(20);
+                                            projectile.getJoueur().getOut().println("Vous venez de tuer un adversaire");
+                                            projectile.getJoueur().getOut().println("+20 points");
+                                            grid[j.getX()][j.getY()] = EMPTY;
+                                            tueJoueur(j);
+                                        }
+                                        projectile.meurt();
+                                        grid[projectile.getX()][projectile.getY()] = EMPTY;
+                                    }else{
                                         projectile.bougeGauche();
                                         grid[projectile.getX()][projectile.getY()+1] = EMPTY;
                                         grid[projectile.getX()][projectile.getY()] = projectile.getChara();
-                                    }else{
-                                        tueEnnemi(projectile);
                                     }
                                 }else{
                                     grid[projectile.getX()][projectile.getY()] = EMPTY;
@@ -471,13 +550,24 @@ public class DrolGame {
                                 }
                                 break;
                             case "B":
-                                if (grid[projectile.getX()+1][projectile.getY()] == EMPTY || grid[projectile.getX()+1][projectile.getY()] == ENNEMY1 || grid[projectile.getX()+1][projectile.getY()] == ENNEMY2) {
-                                    if(!projectileToucheEnnemi(projectile)){
+                                if (grid[projectile.getX() + 1][projectile.getY()] != WALL && grid[projectile.getX()+1][projectile.getY()] != FAMILY){
+                                    if(projectileToucheEnnemi(projectile)){
+                                        tueEnnemi(projectile);
+                                    }else if(projectileVaToucherJoueur(projectile)){
+                                        Joueur j = joueurToucheProjectile(projectile);
+                                        if(!j.getEquipe().equals(projectile.getJoueur().getEquipe()) && optionMode == 2){
+                                            projectile.getJoueur().ajScore(20);
+                                            projectile.getJoueur().getOut().println("Vous venez de tuer un adversaire");
+                                            projectile.getJoueur().getOut().println("+20 points");
+                                            grid[j.getX()][j.getY()] = EMPTY;
+                                            tueJoueur(j);
+                                        }
+                                        grid[projectile.getX()][projectile.getY()] = EMPTY;
+                                        projectile.meurt();
+                                    }else{
                                         projectile.bougeBas();
                                         grid[projectile.getX()-1][projectile.getY()] = EMPTY;
                                         grid[projectile.getX()][projectile.getY()] = projectile.getChara();
-                                    }else{
-                                        tueEnnemi(projectile);
                                     }
                                 }else{
                                     grid[projectile.getX()][projectile.getY()] = EMPTY;
@@ -485,13 +575,24 @@ public class DrolGame {
                                 }
                                 break;
                             case "D":
-                                 if (grid[projectile.getX()][projectile.getY()+1] == EMPTY || grid[projectile.getX()][projectile.getY()+1] == ENNEMY1 || grid[projectile.getX()][projectile.getY()+1] == ENNEMY2) {
-                                    if(!projectileToucheEnnemi(projectile)){
+                                if (grid[projectile.getX()][projectile.getY()+1] != WALL && grid[projectile.getX()][projectile.getY()+1] != FAMILY){
+                                    if(projectileToucheEnnemi(projectile)){
+                                        tueEnnemi(projectile);
+                                    }else if(projectileVaToucherJoueur(projectile)){
+                                        Joueur j = joueurToucheProjectile(projectile);
+                                        if(!j.getEquipe().equals(projectile.getJoueur().getEquipe()) && optionMode == 2){
+                                            projectile.getJoueur().ajScore(20);
+                                            projectile.getJoueur().getOut().println("Vous venez de tuer un adversaire");
+                                            projectile.getJoueur().getOut().println("+20 points");
+                                            grid[j.getX()][j.getY()] = EMPTY;
+                                            tueJoueur(j);
+                                        }
+                                        projectile.meurt();
+                                        grid[projectile.getX()][projectile.getY()] = EMPTY;
+                                    }else{
                                         projectile.bougeDroite();
                                         grid[projectile.getX()][projectile.getY()-1] = EMPTY;
                                         grid[projectile.getX()][projectile.getY()] = projectile.getChara();
-                                    }else{
-                                        tueEnnemi(projectile);
                                     }
                                 }else{
                                     grid[projectile.getX()][projectile.getY()] = EMPTY;
@@ -502,6 +603,23 @@ public class DrolGame {
                     }
                 }  
             }
+        }
+    }
+
+    public static void tueJoueur(Joueur j){
+        nbJoueurVivant--;
+        j.meurt();
+        j.getOut().println("Le robot est mort");
+        j.getOut().println("END");
+        if(!encoreEquipeVivante()){
+            try{
+                FileOutputStream outputStream = new FileOutputStream("score.txt", true);
+                PrintWriter printStream = new PrintWriter(outputStream, true, StandardCharsets.UTF_8);
+                for(Joueur joueur:DrolGame.getJoueurs()){
+                    printStream.print(joueur.getPseudo() + ": " + joueur.getScore() + "\n");
+                }
+                printStream.close();
+            }catch(IOException e){e.printStackTrace();}
         }
     }
 
@@ -571,6 +689,28 @@ public class DrolGame {
         return new Famille(-1, -1);
     }
 
+    public static boolean projectileVaToucherJoueur(Projectile projectile){
+        synchronized(projectile){
+            for(Joueur joueur : joueurs){
+                if(!joueur.equals(projectile.getJoueur()) && !joueur.estMort() && !projectile.estMort() && (joueur.getX() == projectile.getX() || joueur.getX()-1 == projectile.getX() || joueur.getX()+1 == projectile.getX()) && (joueur.getY()+1 == projectile.getY() || joueur.getY()-1 == projectile.getY() || joueur.getY() == projectile.getY())){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static Joueur joueurToucheProjectile(Projectile projectile){
+        synchronized(projectile){
+            for(Joueur joueur : joueurs){
+                if(!joueur.equals(projectile.getJoueur()) && !joueur.estMort() && !projectile.estMort() && (joueur.getX() == projectile.getX() || joueur.getX()-1 == projectile.getX() || joueur.getX()+1 == projectile.getX()) && (joueur.getY()+1 == projectile.getY() || joueur.getY()-1 == projectile.getY() || joueur.getY() == projectile.getY())){
+                    return joueur;
+                }
+            }
+        }
+        return new Joueur(-1, -1, "Blanc", "D", out, "None");
+    }
+
     private static void afficheScore(){
         System.out.println("\n");
         try{
@@ -617,6 +757,24 @@ public class DrolGame {
         }catch(IOException e){e.printStackTrace();}
     }
 
+    private static boolean estEquipeMorte(Equipe equipe){
+        for(Joueur joueur:equipe.getJoueurs()){
+            if(!joueur.estMort()){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean encoreEquipeVivante(){
+        for(Equipe AutreEquipe:equipes){
+            if(!estEquipeMorte(AutreEquipe)){
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static int getWidth(){
         return WIDTH;
     }
@@ -633,6 +791,10 @@ public class DrolGame {
         return joueurs;
     }
 
+    public static synchronized ArrayList<Equipe> getEquipes(){
+        return equipes;
+    }
+
     public static int getNbFamille(){
         return nbFamille;
     }
@@ -641,7 +803,33 @@ public class DrolGame {
         return nbFamilleDelivre;
     }
 
+    public static int getModeJeu(){
+        return optionMode;
+    }
+
+    public static boolean getSolo(){
+        return (nbJoueur==1);
+    }
+
     public static void ajNbFamille(){
         nbFamilleDelivre++;
+    }
+
+    public static int getNbEquipe(){
+        return equipes.size();
+    }
+
+    public static int getNbJoueurVivant(){
+        return nbJoueurVivant;
+    }
+
+    public static Equipe getEquipeGagnante(){
+        Equipe best = equipes.get(0);
+        for(Equipe equipe : equipes){
+            if(equipe.getScore()>=best.getScore()){
+                best = equipe;
+            }
+        }
+        return best;
     }
 }

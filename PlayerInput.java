@@ -11,7 +11,7 @@ public class PlayerInput {
             System.exit(1);
         }
 
-        int portNumber = 1234;
+        int portNumber = 8080;
         String hostName = args[0];
         String pseudo = args[1];
 
@@ -47,10 +47,14 @@ public class PlayerInput {
             receiverThread.start();
 
             // Envoi des messages saisis par l'utilisateur au serveur
+            
             String userInput;
-            while (!arret && (userInput = stdIn.readLine()) != null) {
-                out.println(userInput);
+            while (!arret) {
+                if((userInput = stdIn.readLine()) != null){
+                    out.println(userInput);
+                }
             }
+            clientSocket.close();
 
         } catch (IOException e) {
             System.err.println("Impossible d'établir une connexion");

@@ -5,6 +5,7 @@ public class Joueur extends EntiteBouge{
     private String couleur;
     private int score;
     private PrintWriter out;
+    private Equipe equipe;
 
 
     public Joueur(int x, int y, String couleur, String direction, PrintWriter out, String pseudo){
@@ -15,6 +16,7 @@ public class Joueur extends EntiteBouge{
         this.setCouleur(couleur);
         this.out = out;
         this.pseudo = pseudo;
+        this.equipe = new Equipe("None");
     }
 
     public void setCouleur(String couleur){
@@ -39,7 +41,9 @@ public class Joueur extends EntiteBouge{
     }
 
     public void ajScore(int ajout){
-        this.score+=ajout;
+        for(Joueur joueur: equipe.getJoueurs()){
+            joueur.score += ajout;
+        }
     }
 
     public PrintWriter getOut(){
@@ -48,6 +52,14 @@ public class Joueur extends EntiteBouge{
 
     public String getPseudo(){
         return this.pseudo;
+    }
+
+    public Equipe getEquipe(){
+        return this.equipe;
+    }
+
+    public void setEquipe(Equipe equipe){
+        this.equipe = equipe;
     }
 
     public void bougeHaut(){

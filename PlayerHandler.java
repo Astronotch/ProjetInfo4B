@@ -19,8 +19,70 @@ public class PlayerHandler extends Thread {
 
     public void run() {
         try {
+            String choixEquipe = "-1";
+            if(DrolGame.getEquipes().size()>1){
+                out.println("Choisissez votre équipe:");
+                switch(DrolGame.getEquipes().size()){
+                    case 4:
+                        out.println("1-Equipe rouge");
+                        out.println("2-Equipe bleue");
+                        out.println("3-Equipe verte");
+                        out.println("4-Equipe jaune");
+                        break;
+                    case 3:
+                        out.println("1-Equipe rouge");
+                        out.println("2-Equipe bleue");
+                        out.println("3-Equipe verte");
+                        break;
+                    case 2:
+                        out.println("1-Equipe rouge");
+                        out.println("2-Equipe bleue");
+                        break;
+                }
+            }
+
+            while(!DrolGame.equipePleine() && (((choixEquipe = (String)in.readLine()) != null) && !choixEquipe.equals("-1") && !DrolGame.getSolo())){
+                switch(choixEquipe){
+                    case "1":
+                        if(!joueur.getEquipe().getNom().equals("None")){
+                            joueur.getEquipe().supprimerJoueur(joueur);
+                        }
+                        DrolGame.getEquipes().get(0).ajoutJoueur(joueur);
+                        joueur.setEquipe(DrolGame.getEquipes().get(0));
+                        out.println("Vous êtes dans l'équipe " + joueur.getEquipe().getNom());
+                        System.out.println(joueur.getPseudo() + " est dans l'équipe " + joueur.getEquipe().getNom());
+                        break;
+                    case "2":
+                        if(!joueur.getEquipe().getNom().equals("None")){
+                            joueur.getEquipe().supprimerJoueur(joueur);
+                        }
+                        joueur.setEquipe(DrolGame.getEquipes().get(1));
+                        DrolGame.getEquipes().get(1).ajoutJoueur(joueur);
+                        out.println("Vous êtes dans l'équipe " + joueur.getEquipe().getNom());
+                        System.out.println(joueur.getPseudo() + " est dans l'équipe " + joueur.getEquipe().getNom());
+                        break;
+                    case "3":
+                        if(!joueur.getEquipe().getNom().equals("None")){
+                            joueur.getEquipe().supprimerJoueur(joueur);    
+                        }
+                        joueur.setEquipe(DrolGame.getEquipes().get(2));
+                        DrolGame.getEquipes().get(2).ajoutJoueur(joueur);
+                        out.println("Vous êtes dans l'équipe " + joueur.getEquipe().getNom());
+                        System.out.println(joueur.getPseudo() + " est dans l'équipe " + joueur.getEquipe().getNom());
+                        break;
+                    case "4":
+                        if(!joueur.getEquipe().getNom().equals("None")){
+                            joueur.getEquipe().supprimerJoueur(joueur);    
+                        }
+                        joueur.setEquipe(DrolGame.getEquipes().get(3));
+                        DrolGame.getEquipes().get(3).ajoutJoueur(joueur);
+                        out.println("Vous êtes dans l'équipe " + joueur.getEquipe().getNom());
+                        System.out.println(joueur.getPseudo() + " est dans l'équipe " + joueur.getEquipe().getNom());
+                        break;
+                }
+            }
+
             String move;
-            out.println("Z/Q/S/D");
             while ((move = (String) in.readLine()) != null) {
                 if (DrolGame.isValidMove(move)) {
                     DrolGame.moveJoueur(move, joueur);
@@ -33,16 +95,14 @@ public class PlayerHandler extends Thread {
                         famDeli.delivre();
                         grid[famDeli.getX()][famDeli.getY()] = joueur.getChara();
                         if(DrolGame.getNbFamilleDelivre() == DrolGame.getNbFamille()){
-                            //Faire un arrêt pour tout les player input ou alors juste y mettre en pause jusqu'au prochain niveau
                             for(Joueur AutreJoueur:DrolGame.getJoueurs()){
                                 if(!AutreJoueur.estMort() && AutreJoueur!=joueur){
-                                    AutreJoueur.getOut().println("Dommage, un autre robot au sauvé toutes les familles");
+                                    AutreJoueur.getOut().println("Dommage, un autre robot a sauvé la dernière famille");
                                     AutreJoueur.getOut().println("END");
                                 }
                             }
+                            out.println("Bravo, toutes les familles ont été sauvées");
                             out.println("END");
-                            out.println("Bravo, vous avez sauvé toutes les familles");
-                            joueur.ajScore(50);
 
                             try{
                                 FileOutputStream outputStream = new FileOutputStream("score.txt", true);
@@ -62,6 +122,10 @@ public class PlayerHandler extends Thread {
                 if (move.equals("END")) {
                     break;
                 }
+            }
+
+            if(DrolGame.getNbJoueurVivant() == 0 || DrolGame.getNbFamilleDelivre() == DrolGame.getNbFamille()){
+                DisplayRunnable.arret();
             }
 
             clientSocket.close();
